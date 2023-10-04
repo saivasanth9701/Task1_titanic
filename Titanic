@@ -1,0 +1,174 @@
+#importing the libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+     
+
+#reading the datset
+data = pd.read_csv('tested.csv')
+
+     
+
+#printing the number of rows and columns
+data.shape
+     
+(418, 12)
+
+#checking for number of missing data
+data.isnull().sum()
+     
+PassengerId      0
+Survived         0
+Pclass           0
+Name             0
+Sex              0
+Age             86
+SibSp            0
+Parch            0
+Ticket           0
+Fare             1
+Cabin          327
+Embarked         0
+dtype: int64
+
+#removing the columns which is not needed
+data=data.drop(columns=["Cabin","Name","PassengerId","Ticket"],axis=1)
+
+     
+
+#filling the missing embarked value with common value
+data = data.fillna({"Embarked": "S"})
+print(data)
+     
+     Survived  Pclass     Sex   Age  SibSp  Parch      Fare Embarked
+0           0       3    male  34.5      0      0    7.8292        Q
+1           1       3  female  47.0      1      0    7.0000        S
+2           0       2    male  62.0      0      0    9.6875        Q
+3           0       3    male  27.0      0      0    8.6625        S
+4           1       3  female  22.0      1      1   12.2875        S
+..        ...     ...     ...   ...    ...    ...       ...      ...
+413         0       3    male   NaN      0      0    8.0500        S
+414         1       1  female  39.0      0      0  108.9000        C
+415         0       3    male  38.5      0      0    7.2500        S
+416         0       3    male   NaN      0      0    8.0500        S
+417         0       3    male   NaN      1      1   22.3583        C
+
+[418 rows x 8 columns]
+
+#seperating the independent and dependent variable
+x=data.iloc[:,1:]
+y=data.iloc[:,0]
+print(x)
+     
+     Pclass     Sex   Age  SibSp  Parch      Fare Embarked
+0         3    male  34.5      0      0    7.8292        Q
+1         3  female  47.0      1      0    7.0000        S
+2         2    male  62.0      0      0    9.6875        Q
+3         3    male  27.0      0      0    8.6625        S
+4         3  female  22.0      1      1   12.2875        S
+..      ...     ...   ...    ...    ...       ...      ...
+413       3    male   NaN      0      0    8.0500        S
+414       1  female  39.0      0      0  108.9000        C
+415       3    male  38.5      0      0    7.2500        S
+416       3    male   NaN      0      0    8.0500        S
+417       3    male   NaN      1      1   22.3583        C
+
+[418 rows x 7 columns]
+
+#converting the embarked column into numerical column
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+ct = ColumnTransformer(transformers=[("encoder",OneHotEncoder(),[6])],remainder="passthrough")
+x=ct.fit_transform(x)
+     
+
+print(x)
+     
+[[0.0 1.0 0.0 ... 0 0 7.8292]
+ [0.0 0.0 1.0 ... 1 0 7.0]
+ [0.0 1.0 0.0 ... 0 0 9.6875]
+ ...
+ [0.0 0.0 1.0 ... 0 0 7.25]
+ [0.0 0.0 1.0 ... 0 0 8.05]
+ [1.0 0.0 0.0 ... 1 1 22.3583]]
+
+#converting the sex category into numerical value
+ct = ColumnTransformer(transformers=[("encoder",OneHotEncoder(),[4])],remainder="passthrough")
+x=ct.fit_transform(x)
+     
+
+print(x)
+     
+[[0.0 1.0 0.0 ... 0 0 7.8292]
+ [1.0 0.0 0.0 ... 1 0 7.0]
+ [0.0 1.0 0.0 ... 0 0 9.6875]
+ ...
+ [0.0 1.0 0.0 ... 0 0 7.25]
+ [0.0 1.0 0.0 ... 0 0 8.05]
+ [0.0 1.0 1.0 ... 1 1 22.3583]]
+
+#filling the missing value of age with mean age value
+from sklearn.impute import SimpleImputer
+imputer = SimpleImputer(missing_values=np.nan, strategy='mean')
+imputer.fit(x[:,6:7])
+x[:,6:7] = imputer.transform(x[:,6:7])
+     
+
+print(x[:,6:9])
+     
+[[34.5 0 0]
+ [47.0 1 0]
+ [62.0 0 0]
+ ...
+ [38.5 0 0]
+ [30.272590361445783 0 0]
+ [30.272590361445783 1 1]]
+Splitting the dataset into the Training set and Test set
+
+#splitting the data into training and testing data
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 0)
+     
+Training XGBoost on the Training set
+
+#building xgboost classifier and traing it using x_train data
+from xgboost import XGBClassifier
+classifier = XGBClassifier()
+classifier.fit(x_train, y_train)
+     
+XGBClassifier(base_score=None, booster=None, callbacks=None,
+              colsample_bylevel=None, colsample_bynode=None,
+              colsample_bytree=None, early_stopping_rounds=None,
+              enable_categorical=False, eval_metric=None, feature_types=None,
+              gamma=None, gpu_id=None, grow_policy=None, importance_type=None,
+              interaction_constraints=None, learning_rate=None, max_bin=None,
+              max_cat_threshold=None, max_cat_to_onehot=None,
+              max_delta_step=None, max_depth=None, max_leaves=None,
+              min_child_weight=None, missing=nan, monotone_constraints=None,
+              n_estimators=100, n_jobs=None, num_parallel_tree=None,
+              predictor=None, random_state=None, ...)
+In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook.
+On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.
+Making the Confusion Matrix
+
+#forming confusion matrix
+from sklearn.metrics import confusion_matrix, accuracy_score
+y_pred = classifier.predict(x_test)
+cm = confusion_matrix(y_test, y_pred)
+print(cm)
+accuracy_score(y_test, y_pred)*100
+     
+[[45  0]
+ [ 0 39]]
+100.0
+Applying k-Fold Cross Validation
+
+#validation using K-Fold Cross Validation
+from sklearn.model_selection import cross_val_score
+accuracies = cross_val_score(estimator = classifier, X = x_train, y = y_train, cv = 10)
+print("Accuracy: {:.2f} %".format(accuracies.mean()*100))
+print("Standard Deviation: {:.2f} %".format(accuracies.std()*100))
+     
+Accuracy: 100.00 %
+Standard Deviation: 0.00 %
